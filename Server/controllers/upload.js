@@ -2,11 +2,12 @@ import cloudinary from "../utils/cloudinary.js";
 
 export const uploadingFile = async (req, res) => {
   try {
+    console.log(req.file)
     if (!req.file) {
       return res.status(400).json({ success: false, message: "No file uploaded" });
     }
 
-    // Convert buffer to base64 data URI
+
     const dataUri = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
 
     const result = await cloudinary.uploader.upload(dataUri, {
