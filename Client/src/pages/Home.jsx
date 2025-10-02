@@ -1,34 +1,33 @@
-import React, { useState, useContext, useRef } from "react";
+// Keep all your imports, including:
+import React, { useState, useRef } from "react";
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import Navbar from "../components/Navbar";
-import AppContext from "../context/AppContext";
+import axios from 'axios';
 
 const Home = () => {
-  const [beforeImage, setBeforeImage] = useState(null);
+  // ... keep all your existing useState and useRef hooks ...
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [beforeImageUrl, setBeforeImageUrl] = useState(null);
   const [afterImage, setAfterImage] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
 
-  const { upload } = useContext(AppContext);
-
+  // ... keep your handleFileChange and handleUploadClick functions ...
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Validate file type
       if (!file.type.startsWith('image/')) {
         toast.error('Please select a valid image file');
         return;
       }
-      
-      // Validate file size (e.g., max 10MB)
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error('File size should be less than 10MB');
+      if (file.size > 16 * 1024 * 1024) {
+        toast.error('File size should be less than 16MB');
         return;
       }
-      
-      setBeforeImage(file);
-      setAfterImage(null); // Reset after image when new file is selected
+      setSelectedFile(file);
+      setBeforeImageUrl(URL.createObjectURL(file));
+      setAfterImage(null);
       toast.success(`Image "${file.name}" selected successfully!`);
     }
   };
@@ -37,30 +36,49 @@ const Home = () => {
     fileInputRef.current?.click();
   };
 
-  const handleUpload = async () => {
-    if (!beforeImage) {
+
+  // --- THIS IS THE MODIFIED FUNCTION FOR TESTING ---
+  const handleEnhance = async () => {
+    if (!selectedFile) {
       toast.warning("Please select an image first");
       return;
     }
     
     setIsUploading(true);
-    toast.info("Enhancing your image... Please wait");
+    toast.info("Testing Public AI API directly... Please wait");
+    
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+
+    // The public URL of your deployed Python service
+    const publicApiUrl = 'https://underwater-enhancer-service-997612821032.asia-south1.run.app/upload';
     
     try {
-      const res = await upload(beforeImage);
-      console.log("Upload success:", res);
-      // Set the same URL for both before and after images
-      setAfterImage(res.url);
-      setBeforeImage(res.url); // This makes both images show the same URL
-      toast.success("Image enhanced successfully! 🎉");
+      // Axios POST directly to the public URL.
+      // We do not set the Content-Type header.
+      const res = await axios.post(publicApiUrl, formData);
+      
+      console.log("Direct API call success:", res.data);
+
+      if (res.data && res.data.success) {
+        const viewUrl = `https://underwater-enhancer-service-997612821032.asia-south1.run.app/view/${res.data.output_file}`;
+        setAfterImage(viewUrl);
+        toast.success("Direct API call successful! 🎉");
+      } else {
+        throw new Error(res.data.message || "API returned success false.");
+      }
+
     } catch (err) {
-      console.error("Upload error:", err);
-      toast.error("Failed to enhance image. Please try again.");
+      // This will now show the actual error from the public API
+      const errorMessage = err.response?.data?.detail || err.response?.data?.message || "Direct API call failed.";
+      console.error("Direct API call error:", err.response?.data || err);
+      toast.error(`Direct API Error: ${errorMessage}`);
     } finally {
       setIsUploading(false);
     }
   };
 
+  // ... keep the rest of your return() JSX the same ...
   return (
     <>
       <Navbar />
@@ -105,14 +123,14 @@ const Home = () => {
                 </button>
 
                 <button
-                  onClick={handleUpload}
-                  disabled={!beforeImage || isUploading}
+                  onClick={handleEnhance}
+                  disabled={!selectedFile || isUploading}
                   className={`${
-                    !beforeImage || isUploading 
+                    !selectedFile || isUploading 
                       ? 'bg-gray-600 cursor-not-allowed' 
                       : 'bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-500 hover:to-cyan-500 hover:scale-105'
                   } text-white px-8 py-3 rounded-lg text-md font-medium transform transition-all duration-300 shadow-lg ${
-                    !isUploading && beforeImage ? 'hover:shadow-teal-500/25' : ''
+                    !isUploading && selectedFile ? 'hover:shadow-teal-500/25' : ''
                   }`}
                 >
                   {isUploading ? (
@@ -129,9 +147,9 @@ const Home = () => {
                 </button>
               </div>
 
-              {beforeImage && typeof beforeImage === 'object' && (
+              {selectedFile && (
                 <p className="text-sm text-gray-400 mt-2">
-                  Selected: {beforeImage.name} ({(beforeImage.size / 1024 / 1024).toFixed(2)} MB)
+                  Selected: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
                 </p>
               )}
             </div>
@@ -141,11 +159,11 @@ const Home = () => {
                 <div className="bg-slate-800/80 backdrop-blur-sm rounded-lg p-6 border border-slate-700/50">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <h3 className="text-lg font-semibold mb-4">BEFORE</h3>
+                      <h3 className="text-lg font-semibold mb-4 text-center">BEFORE</h3>
                       <div className="bg-slate-700/50 rounded-lg h-64 flex items-center justify-center border border-slate-600/30">
-                        {beforeImage ? (
+                        {beforeImageUrl ? (
                           <img
-                            src={typeof beforeImage === 'string' ? beforeImage : URL.createObjectURL(beforeImage)}
+                            src={beforeImageUrl}
                             alt="Before"
                             className="max-w-full max-h-full rounded"
                           />
@@ -156,9 +174,14 @@ const Home = () => {
                     </div>
 
                     <div>
-                      <h3 className="text-lg font-semibold mb-4">AFTER</h3>
+                      <h3 className="text-lg font-semibold mb-4 text-center">AFTER</h3>
                       <div className="bg-gradient-to-br from-teal-800/60 to-cyan-800/60 rounded-lg h-64 flex items-center justify-center border border-teal-600/30 shadow-lg shadow-teal-500/20">
-                        {afterImage ? (
+                        {isUploading ? (
+                           <svg className="animate-spin h-10 w-10 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                        ) : afterImage ? (
                           <img
                             src={afterImage}
                             alt="After"
@@ -177,7 +200,7 @@ const Home = () => {
                   </div>
                 </div>
               </div>
-
+              
               <div className="space-y-6">
                 <div className="bg-slate-800/80 backdrop-blur-sm rounded-lg p-6 border border-slate-700/50 hover:border-teal-500/30 transition-all duration-300">
                   <h3 className="text-lg font-semibold mb-4 text-teal-300">
@@ -185,28 +208,16 @@ const Home = () => {
                   </h3>
                   <div className="space-y-4">
                     <div className="flex justify-between items-center group">
-                      <span className="text-gray-300 group-hover:text-teal-300 transition-colors">
-                        PSNR
-                      </span>
-                      <span className="text-2xl font-bold text-cyan-400">
-                        32.1
-                      </span>
+                      <span className="text-gray-300 group-hover:text-teal-300 transition-colors">PSNR</span>
+                      <span className="text-2xl font-bold text-cyan-400">32.1</span>
                     </div>
                     <div className="flex justify-between items-center group">
-                      <span className="text-gray-300 group-hover:text-teal-300 transition-colors">
-                        SSIM
-                      </span>
-                      <span className="text-2xl font-bold text-cyan-400">
-                        0.91
-                      </span>
+                      <span className="text-gray-300 group-hover:text-teal-300 transition-colors">SSIM</span>
+                      <span className="text-2xl font-bold text-cyan-400">0.91</span>
                     </div>
                     <div className="flex justify-between items-center group">
-                      <span className="text-gray-300 group-hover:text-teal-300 transition-colors">
-                        UIQM
-                      </span>
-                      <span className="text-2xl font-bold text-cyan-400">
-                        4.3
-                      </span>
+                      <span className="text-gray-300 group-hover:text-teal-300 transition-colors">UIQM</span>
+                      <span className="text-2xl font-bold text-cyan-400">4.3</span>
                     </div>
                   </div>
                 </div>

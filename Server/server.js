@@ -1,4 +1,5 @@
 import dotenv from 'dotenv';
+import enhancementRouter from './routes/enhancement.js';
 dotenv.config();
 
 console.log("==============================================");
@@ -33,7 +34,8 @@ app.use(cors({
 dbConnection();
 
 app.use('/api/upload', uploadRouter);   
-app.use('/api/profile', profileRouter);  
+app.use('/api/profile', profileRouter);
+app.use("/api/enhance", enhancementRouter);  
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
