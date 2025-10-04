@@ -1,0 +1,6 @@
+train: C:/Users/varun/Desktop/sih2/dataset/images/train
+val: C:/Users/varun/Desktop/sih2/dataset/images/val
+test: C:/Users/varun/Desktop/sih2/dataset/images/test
+
+nc: 4
+names: ['diver','submarine', 'robot', 'shipwreck']
